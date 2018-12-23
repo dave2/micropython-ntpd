@@ -34,6 +34,15 @@ class GPS():
         loop.create_task(self._reader())
         return
 
+    def isLocked(self):
+        return self._lock
+
+    def date(self):
+        return self._date
+
+    def time(self):
+        return self._time
+
     # these should be subclassed for the specific GPS unit, as
     # write commands vary between recievers
     async def set_auto_messages(self,types,interval):
@@ -92,7 +101,7 @@ class GPS():
                 self._longitude = -self._longitude
             self._altitude = float(segs[9])
             self._time = self._nmea_time_to_list(segs[1])
-            print('gps:',self._time,'pos:',self._lattitude,self._longitude,self._altitude)
+            #print('gps:',self._time,'pos:',self._lattitude,self._longitude,self._altitude)
         return
 
     # GPRMC "Recommended Minimum Specific GPS/Transit Data"
@@ -117,7 +126,7 @@ class GPS():
             self._altitude = 0.0
             self._time = self._nmea_time_to_list(segs[1])
             self._date = self._nmea_date_to_list(segs[9])
-            print('gps:',self._date,self._time,'pos:',self._lattitude,self._longitude,self._altitude)
+            #print('gps:',self._date,self._time,'pos:',self._lattitude,self._longitude,self._altitude)
         return
 
     async def _send(self,message):
