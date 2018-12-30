@@ -25,10 +25,10 @@ class GPS():
         self._sreader = asyncio.StreamReader(uart)
         self._swriter = asyncio.StreamWriter(uart,{})
         self._lock = False
-        self._lattitude = 0.0
-        self._longitude = 0.0
-        self._altitude = 0.0
-        self._time = (0,0,0,0)
+        # self._lattitude = 0.0
+        # self._longitude = 0.0
+        # self._altitude = 0.0
+        self._time = (0,0,0)
         self._date = (0,0,0)
         loop = asyncio.get_event_loop()
         loop.create_task(self._reader())
@@ -68,8 +68,8 @@ class GPS():
         h = int(time[0:2])
         m = int(time[2:4])
         s = int(time[4:6])
-        ss = float(time[6:])
-        return (h, m, s, ss)
+        #ss = float(time[6:])
+        return (h, m, s)
     def _nmea_date_to_list(self,date):
         d = int(date[0:2])
         m = int(date[2:4])
@@ -91,15 +91,15 @@ class GPS():
         if (was_lock != self._lock):
             print('gps: lock status now ',self._lock)
         await asyncio.sleep(0)
-        # update position
+        # update data
         if (self._lock):
-            self._lattitude = self._nmea_lat_to_float(segs[2])
-            if (segs[3] == 'S'):
-                self._lattitude = -self._lattitude
-            self._longitude = self._nmea_long_to_float(segs[4])
-            if (segs[5] == 'W'):
-                self._longitude = -self._longitude
-            self._altitude = float(segs[9])
+            # self._lattitude = self._nmea_lat_to_float(segs[2])
+            # if (segs[3] == 'S'):
+            #     self._lattitude = -self._lattitude
+            # self._longitude = self._nmea_long_to_float(segs[4])
+            # if (segs[5] == 'W'):
+            #     self._longitude = -self._longitude
+            # self._altitude = float(segs[9])
             self._time = self._nmea_time_to_list(segs[1])
             #print('gps:',self._time,'pos:',self._lattitude,self._longitude,self._altitude)
         return
@@ -117,13 +117,13 @@ class GPS():
         await asyncio.sleep(0)
         # update navigation data
         if (self._lock):
-            self._lattitude = self._nmea_lat_to_float(segs[3])
-            if (segs[4] == 'S'):
-                self._lattitude = -self._lattitude
-            self._longitude = self._nmea_long_to_float(segs[5])
-            if (segs[6] == 'W'):
-                self._longitude = -self._longitude
-            self._altitude = 0.0
+            # self._lattitude = self._nmea_lat_to_float(segs[3])
+            # if (segs[4] == 'S'):
+            #     self._lattitude = -self._lattitude
+            # self._longitude = self._nmea_long_to_float(segs[5])
+            # if (segs[6] == 'W'):
+            #     self._longitude = -self._longitude
+            # self._altitude = 0.0
             self._time = self._nmea_time_to_list(segs[1])
             self._date = self._nmea_date_to_list(segs[9])
             #print('gps:',self._date,self._time,'pos:',self._lattitude,self._longitude,self._altitude)
