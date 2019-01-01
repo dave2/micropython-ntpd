@@ -52,7 +52,7 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
     }
 
 
-    _RTC_MAX = const(8192)
+    _RTC_MAX = const(8191)
 
     # wrap initialiser
     def __init__(self, *args, **kwargs):
@@ -77,7 +77,7 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
         self._rtc_dr = uctypes.struct(_RTC_BASE+_RTC_DR_OFFSET,self._rtc_dr_struct,uctypes.NATIVE)
         self._pps_rtc = 0
         self._pps_discard = 0
-        self._ss_offset = 0
+        self._ss_offset = -10000
         self._refclk = (0,0,0,0,0,0)
 
     # try to get some better perf out of this, it's staticish code
@@ -121,6 +121,7 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
         ppsint = ExtInt(self._pps_pin, ExtInt.IRQ_RISING, Pin.PULL_NONE, self._pps)
         ppsint.disable()
         self._pps_event.clear()
+        await asyncio.sleep(0)
         while True:
             print("syncedclock_rtc: initalise gps")
             await self._gps.set_auto_messages(['RMC'],1)
@@ -144,7 +145,7 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
             date = self._gps.date()
             time = self._gps.time()
             # helpfully utime and pyb.RTC use different order in the tuple
-            now = utime.localtime(utime.mktime((date[2],date[1],date[0],time[0],time[1],time[2],0,0)))
+            now = utime.localtime(utime.mktime((date[2],date[1],date[0],time[0],time[1],time[2],0,0))+1)
             self._rtc.datetime((now[0],now[1],now[2],0,now[3],now[4],now[5],0))
             print("syncedclock_rtc: rtc clock now",self._rtc.datetime())
             await asyncio.sleep(0)
@@ -164,6 +165,7 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
                     ppsint.disable()
                     break
                 rtc_ss = self._pps_rtc
+                await asyncio.sleep(0)
                 # first pass, just discard the value
                 if (last_rtc_ss == -1):
                     last_rtc_ss = rtc_ss
@@ -171,8 +173,21 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
                 await asyncio.sleep(0)
                 count += 1
                 # compute the difference in ticks between this and the last
-                tick_error += (rtc_ss - last_rtc_ss)
+                error = (rtc_ss - last_rtc_ss)
+                if (abs(error) > _RTC_MAX - 50):
+                    # probably actually rollover problem
+                    if (rtc_ss < last_rtc_ss):
+                        error = (rtc_ss + _RTC_MAX+1 - last_rtc_ss)
+                    else:
+                        error = (rtc_ss - last_rtc_ss + _RTC_MAX+1)
+                await asyncio.sleep(0)
+                #print(error)
+                tick_error += (error)
                 last_rtc_ss = rtc_ss
+                # always use the last top of second as current offset if it's not a huge error
+                # when locked
+                if (self._locked and tick_error > -1 and tick_error < 1):
+                    self._ss_offset = rtc_ss
                 await asyncio.sleep(0)
                 if (count == 32):
                     # if the tick error is +/-1 ticks, it's locked enough
@@ -183,11 +198,12 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
                     await asyncio.sleep(0)
                     if (self._locked == False and (tick_error <= 1 and tick_error >= -1)):
                         print("syncedclock_rtc: locked with",self._rtc.calibration())
+                        # only cache top of second when we enter lock
+                        #self._ss_offset = (_RTC_MAX-rtc_ss)
                         self._locked = True
                     await asyncio.sleep(0)
                     if (self._locked == True):
-                        # cache current top-of-second offset and update reference clock datetime
-                        self._ss_offset = (_RTC_MAX-rtc_ss)
+                        # update reference clock point
                         self._refclk = self._rtc.datetime()
                     await asyncio.sleep(0)
                     if (self._locked == False):
@@ -215,10 +231,10 @@ class SyncedClock_RTC(syncedclock.SyncedClock):
                          0,0)) + 946684800 # weekday and dayofyear are ignored
         tss = (_RTC_MAX - rtc_tuple[7]) + rtc_offset
         if tss >= _RTC_MAX:
-            tss -= _RTC_MAX
+            tss -= _RTC_MAX+1
             ts += 1
         if tss < 0:
-            tss += _RTC_MAX
+            tss += _RTC_MAX+1
             ts -= 1
         return (ts,tss << 19)
 
