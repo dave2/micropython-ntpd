@@ -120,6 +120,7 @@ async def _ntpd():
         packet = await _get_ntp_packet(poller)
         arrival = clock.now()
         refclk = clock.refclk()
+        await uasyncio.sleep(0)
         ntp_payload = uctypes.struct(uctypes.addressof(packet[0]),ntpstruct,uctypes.BIG_ENDIAN)
         if (clock.isLocked()):
             send_payload.stratum = _NTP_STRATUM_PRIMARY
@@ -129,6 +130,7 @@ async def _ntpd():
             send_payload.receive_timestamp_frac = arrival[1]
             send_payload.origin_timestamp_s = ntp_payload.transmit_timestamp_s
             send_payload.origin_timestamp_frac = ntp_payload.transmit_timestamp_frac
+            await uasyncio.sleep(0)
             transmit = clock.now()
             send_payload.transmit_timestamp_s = transmit[0]+2208988800
             send_payload.transmit_timestamp_frac = transmit[1]
