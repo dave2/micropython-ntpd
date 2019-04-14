@@ -123,6 +123,11 @@ async def _ntpd():
         await uasyncio.sleep(0)
         ntp_payload = uctypes.struct(uctypes.addressof(packet[0]),ntpstruct,uctypes.BIG_ENDIAN)
         if (clock.isLocked()):
+            send_payload.poll = ntp_payload.poll
+            if (ntp_payload.poll < 6):
+                send_payload.poll = 6
+            if (ntp_payload.poll > 10):
+                send_payload.poll = 10
             send_payload.stratum = _NTP_STRATUM_PRIMARY
             send_payload.reference_timestamp_s = refclk[0]+2208988800
             send_payload.reference_timestamp_frac = refclk[1]
